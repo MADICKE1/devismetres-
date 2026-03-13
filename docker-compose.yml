@@ -1,0 +1,160 @@
+version: '3.8'
+
+services:
+  # ===============================
+  # PostgreSQL Database
+  # ===============================
+  db:
+    image: postgres:15-alpine
+    container_name: devis-ia-db
+    environment:
+      POSTGRES_USER: ${DB_USER:-devis_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secure_password_123}
+      POSTGRES_DB: ${DB_NAME:-devis_ia}
+      TZ: Europe/Paris
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-devis_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - devis-ia-network
+    restart: unless-stopped
+
+  # ===============================
+  # Backend API Server
+  # ===============================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: devis-ia-backend
+    environment:
+      PORT: 5000
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: postgresql://${DB_USER:-devis_user}:${DB_PASSWORD:-secure_password_123}@db:5432/${DB_NAME:-devis_ia}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      JWT_SECRET: ${JWT_SECRET:-your_jwt_secret_key_here}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000,http://frontend:3000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - devis-ia-network
+    restart: unless-stopped
+    command: npm run backend-prod
+
+  # ===============================
+  # Frontend React App
+  # ===============================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: ${REACT_APP_API_URL:-http://backend:5000}
+        REACT_APP_CLAUDE_API_KEY: ${REACT_APP_CLAUDE_API_KEY}
+    container_name: devis-ia-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      REACT_APP_API_URL: ${REACT_APP_API_URL:-http://backend:5000}
+      REACT_APP_CLAUDE_API_KEY: ${REACT_APP_CLAUDE_API_KEY}
+      REACT_APP_ENV: ${NODE_ENV:-production}
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    networks:
+      - devis-ia-network
+    restart: unless-stopped
+
+  # ===============================
+  # Nginx Reverse Proxy (Optional)
+  # ===============================
+  nginx:
+    image: nginx:latest
+    container_name: devis-ia-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - devis-ia-network
+    restart: unless-stopped
+
+  # ===============================
+  # Redis Cache (Optional)
+  # ===============================
+  redis:
+    image: redis:7-alpine
+    container_name: devis-ia-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - devis-ia-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  # ===============================
+  # pgAdmin Database UI (Optional)
+  # ===============================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: devis-ia-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@devis-ia.pro}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - devis-ia-network
+    restart: unless-stopped
+    profiles:
+      - debug
+
+# ===============================
+# Networks
+# ===============================
+networks:
+  devis-ia-network:
+    driver: bridge
+
+# ===============================
+# Volumes
+# ===============================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  pgadmin_data:
+    driver: local

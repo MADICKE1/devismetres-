@@ -1,0 +1,36 @@
+# Stage 1: Build
+FROM node:18-alpine AS build
+
+WORKDIR /build
+
+COPY package*.json ./
+
+RUN npm ci
+
+COPY . .
+
+# Build React app
+RUN npm run build
+
+# Stage 2: Production
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Installer serve pour servir l'application
+RUN npm install -g serve
+
+# Copier l'app buildée
+COPY --from=build /build/build ./build
+COPY --from=build /build/public ./public
+COPY --from=build /build/package*.json ./
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost:3000 || exit 1
+
+# Expose port
+EXPOSE 3000
+
+# Start application
+CMD ["serve", "-s", "build", "-l", "3000"]

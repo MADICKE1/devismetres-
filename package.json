@@ -1,0 +1,64 @@
+{
+  "name": "devis-ia-pro",
+  "version": "1.0.0",
+  "description": "Plateforme SaaS de génération de devis de construction avec IA",
+  "main": "backend/server.js",
+  "private": true,
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "backend": "nodemon backend/server.js",
+    "backend-prod": "node backend/server.js",
+    "dev": "concurrently \"npm start\" \"npm run backend\"",
+    "deploy:vercel": "vercel",
+    "deploy:docker": "docker-compose up -d",
+    "deploy:aws": "amplify push && amplify publish"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1",
+    "lucide-react": "^0.294.0",
+    "@anthropic-ai/sdk": "^0.15.0",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "multer": "^1.4.5-lts.1",
+    "dotenv": "^16.3.1",
+    "pg": "^8.11.1",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.1.0",
+    "axios": "^1.6.0",
+    "nodemailer": "^6.9.4",
+    "pdf-lib": "^1.17.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "tailwindcss": "^3.3.6",
+    "postcss": "^8.4.31",
+    "autoprefixer": "^10.4.16",
+    "nodemon": "^3.0.1",
+    "concurrently": "^8.2.1",
+    "vercel": "^32.2.5"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "proxy": "http://localhost:5000",
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
